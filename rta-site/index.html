@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RTA patient database</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f7;--card:#fff;--ink:#15232b;--mute:#586a74;--line:#d3dce1;--acc:#17607f;--on:#fff;--bad:#b3261e;--tint:#e8f1f5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1519;--card:#172127;--ink:#e5edf0;--mute:#94a6af;--line:#2a3941;--acc:#62b6d8;--on:#08161c;--bad:#ff8f86;--tint:#1b2c35}}
+:root[data-theme="dark"]{--bg:#0e1519;--card:#172127;--ink:#e5edf0;--mute:#94a6af;--line:#2a3941;--acc:#62b6d8;--on:#08161c;--bad:#ff8f86;--tint:#1b2c35}
+[hidden]{display:none!important}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+.bar,main{max-width:1100px;margin:0 auto;padding:0 16px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:12px;padding-bottom:12px}
+h2.ttl{font-size:17px;margin:0 0 10px}
+h1{font-size:19px;margin:0;font-weight:600}
+.sub{color:var(--mute);font-size:13px}
+.sp{flex:1}
+main{padding-top:18px;padding-bottom:28px}
+fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:0 0 16px;padding:12px 16px 16px;min-width:0}
+legend{font-weight:600;padding:0 6px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 16px}
+.w{grid-column:1/-1}
+.fl{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
+textarea{resize:vertical}
+.chk{display:flex;flex-wrap:wrap;gap:6px 16px}
+.chk label{display:flex;align-items:center;gap:6px;color:var(--ink);font-size:14px}
+.chk input{width:auto}
+.b{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--acc);background:var(--acc);color:var(--on);cursor:pointer}
+.b.o{background:transparent;color:var(--acc)}
+.b.d{background:transparent;border-color:var(--bad);color:var(--bad)}
+.b.dd{background:var(--bad);border-color:var(--bad);color:#fff}
+.b.s{padding:4px 10px;font-size:13px}
+:is(button,input,select,textarea):focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.sv{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.editnote{color:var(--acc);font-weight:600;font-size:14px}
+.tools{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.tools input{max-width:260px}
+.note{color:var(--mute);font-size:13px}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:780px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:13px;color:var(--mute);font-weight:500}
+tr:last-child td{border-bottom:0}
+td.act{text-align:right}
+.empty{padding:28px 8px;color:var(--mute)}
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);width:min(640px,92vw);padding:0}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{padding:16px 18px}
+dialog h2{margin:0 0 8px;font-size:18px}
+dialog h3{margin:14px 0 4px;font-size:14px;color:var(--acc)}
+.bd{max-height:60vh;overflow:auto}
+dl{display:grid;grid-template-columns:minmax(120px,40%) 1fr;gap:3px 12px;margin:0;font-size:14px}
+dt{color:var(--mute)}dd{margin:0}
+.ft{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.setf{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.setf label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
+#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;max-width:90vw;z-index:9}
+#msg:empty{display:none}#msg.bad{background:var(--bad);color:#fff}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <div><h1>RTA patient database</h1><div class="sub">Road traffic accident study, Chattogram</div></div>
+  <span class="sp"></span>
+  <button class="b" id="addBtn" type="button">Add patient</button>
+  <button class="b o" id="setBtn" type="button">Settings</button>
+  <button class="b o" id="back" type="button" hidden>Current patients</button>
+  <button class="b o" id="exp" type="button">Export CSV</button>
+</div></header>
+
+<main>
+  <section id="add" hidden>
+    <form id="f" autocomplete="off"></form>
+  </section>
+  <section id="cur">
+    <h2 class="ttl">Current patients<span class="cnt" id="cnt">0</span></h2>
+    <div class="tools"><input id="q" type="search" placeholder="Search by Study ID or Accident ID" aria-label="Search by Study ID or Accident ID"><span class="note">Records are stored in NocoDB. Export CSV for a local copy.</span></div>
+    <div class="tw" id="tw"><table><thead><tr><th>Study ID</th><th>Accident ID</th><th>Age</th><th>Sex</th><th>Road-user type</th><th>ISS</th><th>ICU</th><th>Outcome</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="empty" id="empty"></div>
+  </section>
+</main>
+<dialog id="dlg"></dialog>
+<dialog id="set">
+  <form id="sf" method="dialog">
+    <h2>Sign in</h2>
+    <p class="note">Enter the access password. It is remembered on this device only. The NocoDB token and table ID are kept on the server.</p>
+    <div class="setf">
+      <label>Access password<input id="sp" type="password" autocomplete="current-password" required></label>
+    </div>
+    <div class="ft"><button class="b o" value="cancel" type="submit">Cancel</button><button class="b" id="saveSet" value="save" type="submit">Sign in</button></div>
+  </form>
+</dialog>
+<div id="msg" role="status"></div>
+
+<script>
+const YN=['Yes','No'],YNU=['Yes','No','Unknown'],YNA=['Yes','No','Unknown','Not applicable'];
+// [key, label, type, options]  types: t text, p phone, n number, d date, h time, a textarea, c coded select (value = 1..n), s text select, m multi-check, g geo cascade (group:level)
+// Any option named Other/Others automatically opens a free-text box (saved as <key>_other).
+const VEH=['Bus','Minibus','Truck','Covered van','Pickup','Microbus','Car','Jeep','Motorcycle','Bicycle','Rickshaw','Rickshaw van','Easy bike (battery rickshaw)','Three wheeler (CNG)','Human hauler (Leguna)','Tempo','Nosimon/Karimon','Tractor','Power tiller','Tanker','Lorry','Ambulance','Train','Bullock cart','Other'];
+const S=[
+['Identification & sociodemographic',[
+['study_id','Study ID (anonymous code)','t'],['age','Age (years)','n'],['phone','Phone number','p'],
+['sex','Sex','c',['Male','Female','Other']],
+['occupation','Occupation','c',['Student','Service','Business','Driver','Worker','Other']],
+['residence','Residence','c',['Urban','Rural']],
+['district','District of residence','g','res:0'],['res_upazila','Upazila','g','res:1'],['res_thana','Thana (CMP)','g','res:2']]],
+['Accident & technical details',[
+['accident_id','Accident ID','t'],
+['accident_date','Date of accident','d'],
+['arrival_condition','Condition on arrival','c',['Alive','Brought dead','Expired']],
+['day_of_week','Day of week (auto)','t'],['accident_time','Time of accident','h'],['arrival_time','Time of arrival','h'],['incident_time','Time of initiation','h'],
+['accident_district','Accident location — District','g','acc:0'],['accident_upazila','Upazila','g','acc:1'],['accident_thana','Thana (CMP)','g','acc:2'],
+['location_type','Location type','c',['Intersection','Straight road','Curve','Bridge','Other']],
+['road_type','Road type','c',['Highway','Arterial','Local/urban road','Rural','Other']],
+['road_name','Road name','t'],
+['lighting','Lighting condition','c',['Daylight','Night with street lighting','Night without adequate lighting']],
+['weather','Weather','c',['Clear','Rainy','Foggy','Other']],
+['road_surface','Road surface','c',['Dry','Wet','Damaged/poor','Other']],
+['road_user','Road-user type (victim)','c',['Pedestrian','Motorcycle rider','Motorcycle passenger','Rickshaw rider','Rickshaw passenger','Three wheeler driver','Three wheeler passenger','Car driver','Car passenger','Bus driver','Bus passenger','Truck/lorry driver','Truck/lorry passenger','Other']],
+['n_vehicles','Number of vehicles involved','n'],['vehicle_1','Vehicle 1 (type)','s',VEH],['vehicle_2','Vehicle 2 (type)','s',VEH],['vehicle_3','Vehicle 3 (type)','s',VEH],
+['movement_condition','Movement condition','s',['Moving','Steady']],
+['speeding','Suspected speeding involved?','s',YNU],['wrong_way','Wrong-way driving involved?','s',YNU],['overtaking','Overtaking involved?','s',YNU]]],
+['Safety measures',[
+['helmet_used','Helmet used (motorcycle)','s',YNA],['helmet_proper','Helmet properly worn','s',YNA],
+['seat_belt','Seat belt used (car/bus)','s',YNA],['crossing_used','Designated pedestrian crossing used','s',YNA]]],
+['Pre-hospital & treatment',[
+['minutes_to_hospital','Time interval to hospital, minutes (auto)','n'],
+['delay_cause','Possible cause of delay to tertiary care','a'],
+['transport','Transport to hospital','c',['Ambulance','Private vehicle','Three wheeler','Other']],
+['first_aid','First aid received before hospital?','s',YNU],
+['first_aid_place','Place of first aid','s',['Accident scene/roadside','Home','Pharmacy','Village/rural clinic','Private clinic','Upazila health complex','District/general hospital','Medical college hospital','Other']],
+['first_aid_giver','First aid provider','s',['Registered doctor','Pharmacist','Nurse','Paramedic','Medical assistant (SACMO)','Village doctor/unregistered practitioner','Ambulance staff','Police/fire service/rescuer','Bystander/layperson','Family member','Other']],
+['referred','Referred from another hospital?','s',YN],['referred_place','Referred place','t'],['icu','ICU admission','s',YN],
+['surgery_required','Surgery required','s',YN],['transfusion','Blood transfusion','s',YN],['n_transfusion','No. of blood transfusions','t']]],
+['Injury & severity assessment',[
+['ais_headneck','AIS region — Head & neck (0–6, by doctor)','n',[0,6]],
+['ais_face','AIS region — Face (0–6, by doctor)','n',[0,6]],
+['ais_thorax','AIS region — Thorax (0–6, by doctor)','n',[0,6]],
+['ais_abdomen','AIS region — Abdomen and pelvic contents (0–6, by doctor)','n',[0,6]],
+['ais_extremities','AIS region — Extremities and pelvic girdle (0–6, by doctor)','n',[0,6]],
+['ais_skin','AIS region — External/skin (0–6, by doctor)','n',[0,6]],
+['injury_types','Injury types (select all that apply)','m',['Abrasion','Contusion','Laceration','Incised wound','Penetrating/puncture wound','Avulsion','Fracture','Dislocation','Crush injury','Traumatic amputation','Burn','Concussion/traumatic brain injury','Intracranial haemorrhage','Haemothorax/pneumothorax','Solid/hollow viscus injury','Spinal cord injury','Other']],
+['shock_type','Treatment of shock','c',['Hemorrhagic','Hypovolemic','Obstructive','Neurogenic']],
+['gcs','GCS at admission (3–15)','n',[3,15]],['iss','ISS (0–75) (auto)','n',[0,75]],
+['body_region','Major body region injured','t'],['multiple_injuries','Multiple injuries','s',YN],['n_surgeries','No. of surgeries performed','t']]],
+['Management and hospital outcome',[
+['outcome','Final outcome','c',['Survived','Died']],
+['disability_type','Prolonged disability type','s',['None','Physical/motor','Neurological/cognitive','Sensory (vision/hearing)','Chronic pain','Psychological','Other']],
+['death_date','Date of death','d'],['death_cause','Cause of death','t'],
+['hospital_stay_days','Total hospital stay (days)','n'],
+['postop_morbidity','Post-operative morbidity (select all that apply)','m',['None','Surgical site infection','Wound dehiscence','Sepsis','Pneumonia/respiratory complication','Deep vein thrombosis/PE','Acute kidney injury','Re-operation','Other']]]]
+];
+
+// ---- Geo data ----
+const DIV={Barishal:'Barguna,Barishal,Bhola,Jhalokati,Patuakhali,Pirojpur',Chattogram:'Bandarban,Brahmanbaria,Chandpur,Chattogram,Cumilla,Cox\'s Bazar,Feni,Khagrachari,Lakshmipur,Noakhali,Rangamati',Dhaka:'Dhaka,Faridpur,Gazipur,Gopalganj,Kishoreganj,Madaripur,Manikganj,Munshiganj,Narayanganj,Narsingdi,Rajbari,Shariatpur,Tangail',Khulna:'Bagerhat,Chuadanga,Jashore,Jhenaidah,Khulna,Kushtia,Magura,Meherpur,Narail,Satkhira',Mymensingh:'Jamalpur,Mymensingh,Netrokona,Sherpur',Rajshahi:'Bogura,Chapai Nawabganj,Joypurhat,Naogaon,Natore,Pabna,Rajshahi,Sirajganj',Rangpur:'Dinajpur,Gaibandha,Kurigram,Lalmonirhat,Nilphamari,Panchagarh,Rangpur,Thakurgaon',Sylhet:'Habiganj,Moulvibazar,Sunamganj,Sylhet'};
+const UPZ={
+'Chattogram':'CMP,Anwara,Banshkhali,Boalkhali,Chandanaish,Fatikchhari,Hathazari,Lohagara,Mirsharai,Patiya,Rangunia,Raozan,Sandwip,Satkania,Sitakunda',
+'Cox\'s Bazar':'Chakaria,Cox\'s Bazar Sadar,Kutubdia,Maheshkhali,Pekua,Ramu,Teknaf,Ukhia',
+'Cumilla':'Barura,Brahmanpara,Burichang,Chandina,Chauddagram,Cumilla Adarsha Sadar,Cumilla Sadar Dakshin,Daudkandi,Debidwar,Homna,Laksam,Lalmai,Meghna,Muradnagar,Nangalkot,Titas',
+'Feni':'Chhagalnaiya,Daganbhuiyan,Feni Sadar,Fulgazi,Parshuram,Sonagazi',
+'Noakhali':'Begumganj,Chatkhil,Companiganj,Hatiya,Kabirhat,Noakhali Sadar,Senbagh,Sonaimuri,Subarnachar',
+'Chandpur':'Chandpur Sadar,Faridganj,Haimchar,Hajiganj,Kachua,Matlab Dakshin,Matlab Uttar,Shahrasti',
+'Lakshmipur':'Komolnagar,Lakshmipur Sadar,Raipur,Ramganj,Ramgati',
+'Brahmanbaria':'Akhaura,Ashuganj,Bancharampur,Bijoynagar,Brahmanbaria Sadar,Kasba,Nabinagar,Nasirnagar,Sarail',
+'Khagrachari':'Dighinala,Guimara,Khagrachari Sadar,Lakshmichhari,Mahalchhari,Manikchhari,Matiranga,Panchhari,Ramgarh',
+'Rangamati':'Baghaichhari,Barkal,Belaichhari,Juraichhari,Kaptai,Kawkhali,Langadu,Naniarchar,Rajasthali,Rangamati Sadar',
+'Bandarban':'Ali Kadam,Bandarban Sadar,Lama,Naikhongchhari,Rowangchhari,Ruma,Thanchi',
+'Barguna':'Amtali,Bamna,Barguna Sadar,Betagi,Patharghata,Taltali',
+'Barishal':'Agailjhara,Babuganj,Bakerganj,Banaripara,Barishal Sadar,Gournadi,Hizla,Mehendiganj,Muladi,Wazirpur',
+'Bhola':'Bhola Sadar,Burhanuddin,Char Fasson,Daulatkhan,Lalmohan,Manpura,Tazumuddin',
+'Jhalokati':'Jhalokati Sadar,Kathalia,Nalchity,Rajapur',
+'Patuakhali':'Bauphal,Dashmina,Dumki,Galachipa,Kalapara,Mirzaganj,Patuakhali Sadar,Rangabali',
+'Pirojpur':'Bhandaria,Kawkhali,Mathbaria,Nazirpur,Nesarabad,Pirojpur Sadar,Zianagar',
+'Dhaka':'Dhamrai,Dohar,Keraniganj,Nawabganj,Savar',
+'Faridpur':'Alfadanga,Bhanga,Boalmari,Charbhadrasan,Faridpur Sadar,Madhukhali,Nagarkanda,Sadarpur,Saltha',
+'Gazipur':'Gazipur Sadar,Kaliakair,Kaliganj,Kapasia,Sreepur',
+'Gopalganj':'Gopalganj Sadar,Kashiani,Kotalipara,Muksudpur,Tungipara',
+'Kishoreganj':'Austagram,Bajitpur,Bhairab,Hossainpur,Itna,Karimganj,Katiadi,Kishoreganj Sadar,Kuliarchar,Mithamain,Nikli,Pakundia,Tarail',
+'Madaripur':'Kalkini,Madaripur Sadar,Rajoir,Shibchar',
+'Manikganj':'Daulatpur,Ghior,Harirampur,Manikganj Sadar,Saturia,Shivalaya,Singair',
+'Munshiganj':'Gazaria,Lohajang,Munshiganj Sadar,Sirajdikhan,Sreenagar,Tongibari',
+'Narayanganj':'Araihazar,Bandar,Narayanganj Sadar,Rupganj,Sonargaon',
+'Narsingdi':'Belabo,Monohardi,Narsingdi Sadar,Palash,Raipura,Shibpur',
+'Rajbari':'Baliakandi,Goalanda,Kalukhali,Pangsha,Rajbari Sadar',
+'Shariatpur':'Bhedarganj,Damudya,Gosairhat,Naria,Shariatpur Sadar,Zanjira',
+'Tangail':'Basail,Bhuapur,Delduar,Dhanbari,Ghatail,Gopalpur,Kalihati,Madhupur,Mirzapur,Nagarpur,Sakhipur,Tangail Sadar',
+'Bagerhat':'Bagerhat Sadar,Chitalmari,Fakirhat,Kachua,Mollahat,Mongla,Morrelganj,Rampal,Sarankhola',
+'Chuadanga':'Alamdanga,Chuadanga Sadar,Damurhuda,Jibannagar',
+'Jashore':'Abhaynagar,Bagherpara,Chaugachha,Jashore Sadar,Jhikargachha,Keshabpur,Manirampur,Sharsha',
+'Jhenaidah':'Harinakunda,Jhenaidah Sadar,Kaliganj,Kotchandpur,Maheshpur,Shailkupa',
+'Khulna':'Batiaghata,Dacope,Dighalia,Dumuria,Koyra,Paikgachha,Phultala,Rupsha,Terokhada',
+'Kushtia':'Bheramara,Daulatpur,Khoksa,Kumarkhali,Kushtia Sadar,Mirpur',
+'Magura':'Magura Sadar,Mohammadpur,Shalikha,Sreepur',
+'Meherpur':'Gangni,Meherpur Sadar,Mujibnagar',
+'Narail':'Kalia,Lohagara,Narail Sadar',
+'Satkhira':'Assasuni,Debhata,Kalaroa,Kaliganj,Satkhira Sadar,Shyamnagar,Tala',
+'Jamalpur':'Bakshiganj,Dewanganj,Islampur,Jamalpur Sadar,Madarganj,Melandaha,Sarishabari',
+'Mymensingh':'Bhaluka,Dhobaura,Fulbaria,Gaffargaon,Gauripur,Haluaghat,Ishwarganj,Muktagachha,Mymensingh Sadar,Nandail,Phulpur,Tarakanda,Trishal',
+'Netrokona':'Atpara,Barhatta,Durgapur,Kalmakanda,Kendua,Khaliajuri,Madan,Mohanganj,Netrokona Sadar,Purbadhala',
+'Sherpur':'Jhenaigati,Nakla,Nalitabari,Sherpur Sadar,Sreebardi',
+'Bogura':'Adamdighi,Bogura Sadar,Dhunat,Dhupchanchia,Gabtali,Kahaloo,Nandigram,Sariakandi,Shajahanpur,Sherpur,Shibganj,Sonatala',
+'Chapai Nawabganj':'Bholahat,Gomastapur,Nachole,Nawabganj Sadar,Shibganj',
+'Joypurhat':'Akkelpur,Joypurhat Sadar,Kalai,Khetlal,Panchbibi',
+'Naogaon':'Atrai,Badalgachhi,Dhamoirhat,Manda,Mohadevpur,Naogaon Sadar,Niamatpur,Patnitala,Porsha,Raninagar,Sapahar',
+'Natore':'Bagatipara,Baraigram,Gurudaspur,Lalpur,Natore Sadar,Singra',
+'Pabna':'Atgharia,Bera,Bhangura,Chatmohar,Faridpur,Ishwardi,Pabna Sadar,Santhia,Sujanagar',
+'Rajshahi':'Bagha,Bagmara,Charghat,Durgapur,Godagari,Mohanpur,Paba,Puthia,Tanore',
+'Sirajganj':'Belkuchi,Chauhali,Kamarkhanda,Kazipur,Raiganj,Shahjadpur,Sirajganj Sadar,Tarash,Ullahpara',
+'Dinajpur':'Biral,Birampur,Birganj,Bochaganj,Chirirbandar,Dinajpur Sadar,Fulbari,Ghoraghat,Hakimpur,Kaharole,Khansama,Nawabganj,Parbatipur',
+'Gaibandha':'Fulchhari,Gaibandha Sadar,Gobindaganj,Palashbari,Sadullapur,Saghata,Sundarganj',
+'Kurigram':'Bhurungamari,Char Rajibpur,Chilmari,Kurigram Sadar,Nageshwari,Phulbari,Rajarhat,Raumari,Ulipur',
+'Lalmonirhat':'Aditmari,Hatibandha,Kaliganj,Lalmonirhat Sadar,Patgram',
+'Nilphamari':'Dimla,Domar,Jaldhaka,Kishoreganj,Nilphamari Sadar,Saidpur',
+'Panchagarh':'Atwari,Boda,Debiganj,Panchagarh Sadar,Tetulia',
+'Rangpur':'Badarganj,Gangachara,Kaunia,Mithapukur,Pirgachha,Pirganj,Rangpur Sadar,Taraganj',
+'Thakurgaon':'Baliadangi,Haripur,Pirganj,Ranisankail,Thakurgaon Sadar',
+'Habiganj':'Ajmiriganj,Bahubal,Baniyachong,Chunarughat,Habiganj Sadar,Lakhai,Madhabpur,Nabiganj,Shaistaganj',
+'Moulvibazar':'Barlekha,Juri,Kamalganj,Kulaura,Moulvibazar Sadar,Rajnagar,Sreemangal',
+'Sunamganj':'Bishwamvarpur,Chhatak,Derai,Dharmapasha,Dowarabazar,Jagannathpur,Jamalganj,Sullah,Sunamganj Sadar,Tahirpur,Shantiganj',
+'Sylhet':'Balaganj,Beanibazar,Bishwanath,Companiganj,Dakshin Surma,Fenchuganj,Golapganj,Gowainghat,Jaintiapur,Kanaighat,Osmaninagar,Sylhet Sadar,Zakiganj'};
+const sp=s=>s.split(',');
+const GEO={
+districts:Object.values(DIV).flatMap(sp).sort(),
+upazilas:Object.fromEntries(Object.entries(UPZ).map(([k,x])=>[k,sp(x)])),
+cmp:['Akbar Shah','Bakalia','Bandar','Bayazid Bostami','Chandgaon','Chawkbazar','Double Mooring','EPZ','Halishahar','Karnaphuli','Khulshi','Kotwali','Pahartali','Panchlaish','Patenga','Sadarghat']
+};
+// -----------------
+const ALL=S.flatMap(s=>s[1]),FM=Object.fromEntries(ALL.map(f=>[f[0],f])),$=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+// ---- Access password (NocoDB URL/token/table live in Vercel env vars, never in the browser) ----
+let PW=localStorage.getItem('rtaPw')||'';
+let P=[],editing=null;
+const api=async(method,qs='',body)=>{
+  const r=await fetch(`/api/records${qs}`,{method,headers:{'x-app-password':PW,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
+  if(r.status===401){PW='';localStorage.removeItem('rtaPw');openSet();throw new Error('Wrong or missing password')}
+  if(!r.ok)throw new Error(`Server ${r.status}: ${(await r.text()).slice(0,160)}`);
+  return r.json();
+};
+async function load(){
+  if(!PW){openSet();return}
+  try{const L=[];for(let o=0;;o+=100){const d=await api('GET',`?limit=100&offset=${o}&sort=Id`);L.push(...d.list);if(!d.list.length||(d.pageInfo&&d.pageInfo.isLastPage))break}P=L;render()}
+  catch(e){say('Could not load records. '+e.message,1)}
+}
+let tm;function say(t,bad){const m=$('msg');m.textContent=t;m.className=bad?'bad':'';clearTimeout(tm);tm=setTimeout(()=>m.textContent='',4500)}
+const lab=(k,v)=>{const f=FM[k];if(v===''||v==null)return '';return f&&f[2]=='c'?(f[3][v-1]||v):v};
+
+// build the form
+const T={t:'text',n:'number',d:'date',h:'time',p:'tel'};
+const isO=x=>x=='Other'||x=='Others';
+const EX=ALL.filter(x=>'csm'.includes(x[2])&&x[3].some(isO)).map(x=>x[0]);
+function ctl([k,l,t,o]){
+  const ot=EX.includes(k)?`<input name="${k}_other" type="text" placeholder="Please specify" hidden>`:'';
+  if(t=='c'||t=='s')return `<select name="${k}"><option value=""></option>${o.map((x,i)=>`<option${isO(x)?' data-o="1"':''}${t=='c'?` value="${i+1}">${i+1} – ${x}`:`>${x}`}</option>`).join('')}</select>${ot}`;
+  if(t=='a')return `<textarea name="${k}" rows="2"></textarea>`;
+  if(t=='m')return `<div class="chk">${o.map(x=>`<label><input type="checkbox" name="${k}" value="${x}">${x}</label>`).join('')}</div>${ot}`;
+  if(t=='g')return `<select name="${k}" data-g="${o}"></select><input name="${k}_other" type="text" placeholder="Type name" hidden>`;
+  return `<input name="${k}" type="${T[t]}"${t=='n'?` step="any" min="${o?o[0]:0}"${o?` max="${o[1]}"`:''}`:''}${k=='study_id'?' required':''}${k=='iss'?' readonly':''}>`;
+}
+$('f').innerHTML=S.map(([t,fs],i)=>`<fieldset><legend>${i+1}. ${t}</legend><div class="g">${fs.map(f=>`<${f[2]=='m'?'div':'label'} class="fl${f[2]=='m'||f[2]=='a'?' w':''}">${f[1]}${ctl(f)}</${f[2]=='m'?'div':'label'}>`).join('')}</div></fieldset>`).join('')
+  +`<div class="sv"><span class="editnote" id="editNote" hidden></span><button class="b" type="submit" id="saveBtn">Save patient</button><button class="b o" type="button" id="cancelEdit" hidden>Cancel edit</button><button class="b o" type="reset">Clear form</button></div>`;
+
+const f=$('f'),v=k=>f.elements[k].value,hm=s=>{const[a,b]=s.split(':');return a*60+ +b};
+// "Other" free-text boxes
+function syncOther(){EX.forEach(k=>{const o=f.elements[k+'_other'],c=f.elements[k];
+  const on=c.tagName=='SELECT'?(c.selectedOptions[0]&&c.selectedOptions[0].dataset.o):[...f.querySelectorAll(`[name="${k}"]:checked`)].some(x=>isO(x.value));
+  o.hidden=!on;if(!on)o.value=''})}
+// vehicle 1/2/3 fields follow the number of vehicles
+function vehVis(){const n=+v('n_vehicles')||0;[1,2,3].forEach(i=>{const e=f.elements['vehicle_'+i];e.closest('label').hidden=n<i;if(n<i)e.value=''});syncOther()}
+// geo cascade: district -> upazila -> thana (thana only when upazila is CMP)
+const GL={res:['district','res_upazila','res_thana'],acc:['accident_district','accident_upazila','accident_thana']};
+const gEl=k=>f.elements[k],gOt=k=>f.elements[k+'_other'];
+const gVal=k=>{const e=gEl(k);return e.hidden||e.value=='__other__'?gOt(k).value.trim():e.value};
+function geoItems(g,i){const[d,u]=GL[g];
+  return i==0?GEO.districts:i==1?GEO.upazilas[gVal(d)]||[]:gVal(u)=='CMP'?GEO.cmp:[]}
+function fillGeo(g,i){
+  const k=GL[g][i],sel=gEl(k),oth=gOt(k),items=geoItems(g,i);
+  sel.value='';oth.value='';
+  if(i==2){sel.closest('label').hidden=!items.length}
+  if(!items.length&&i<2){sel.hidden=true;oth.hidden=false;oth.placeholder='Type '+(i?'upazila':'district')+' name'}
+  else{sel.hidden=false;oth.hidden=true;sel.innerHTML='<option value=""></option>'+items.map(x=>`<option>${x}</option>`).join('')+'<option value="__other__">Other / not listed…</option>'}
+}
+function setGeo(g,i,val){
+  fillGeo(g,i);const k=GL[g][i],sel=gEl(k),oth=gOt(k);
+  if(val==null||val==='')return;
+  if(!sel.hidden){if([...sel.options].some(o=>o.value===String(val)))sel.value=String(val);else{sel.value='__other__';oth.hidden=false;oth.value=val}}
+  else oth.value=val;
+}
+function initGeo(){for(const g in GL)[0,1,2].forEach(i=>fillGeo(g,i))}
+f.addEventListener('change',e=>{
+  const t=e.target,gd=t.dataset&&t.dataset.g;
+  if(gd){const[g,i]=gd.split(':'),oth=gOt(t.name);oth.hidden=t.value!='__other__';if(oth.hidden)oth.value='';for(let j=+i+1;j<3;j++)fillGeo(g,j);return}
+  syncOther();
+});
+
+// auto-filled fields
+const AIS_KEYS=['ais_headneck','ais_face','ais_thorax','ais_abdomen','ais_extremities','ais_skin'];
+function computeISS(){
+  const vals=AIS_KEYS.map(k=>+v(k)||0);
+  f.elements.iss.value=vals.some(x=>x>=6)?75:[...vals].sort((a,b)=>b-a).slice(0,3).reduce((s,x)=>s+x*x,0);
+}
+f.addEventListener('input',e=>{
+  if(e.target.name=='n_vehicles')vehVis();
+  if(AIS_KEYS.includes(e.target.name))computeISS();
+  if(!['accident_date','accident_time','arrival_time'].includes(e.target.name))return;
+  if(v('accident_date'))f.elements.day_of_week.value=new Date(v('accident_date')+'T00:00').toLocaleDateString('en-US',{weekday:'long'});
+  if(v('accident_time')&&v('arrival_time'))f.elements.minutes_to_hospital.value=(hm(v('arrival_time'))-hm(v('accident_time'))+1440)%1440;
+});
+f.addEventListener('reset',()=>setTimeout(()=>{initGeo();vehVis()}));
+initGeo();vehVis();
+
+// edit mode
+function updateEditUI(){
+  $('editNote').hidden=!editing;$('cancelEdit').hidden=!editing;
+  $('saveBtn').textContent=editing?`Update patient ${editing.study_id}`:'Save patient';
+  if(editing)$('editNote').textContent='Editing mode — changes update the existing record.';
+}
+function startEdit(p){
+  editing=p;show(1);
+  ALL.forEach(([k,,t])=>{
+    if(t=='g')return;
+    if(t=='m'){const vals=String(p[k]??'').split('; ').filter(Boolean);f.querySelectorAll(`[name="${k}"]`).forEach(c=>c.checked=vals.includes(c.value))}
+    else f.elements[k].value=p[k]??'';
+  });
+  EX.forEach(k=>f.elements[k+'_other'].value=p[k+'_other']??'');
+  for(const g in GL)GL[g].forEach((k,i)=>setGeo(g,i,p[k]));
+  vehVis();syncOther();computeISS();
+  updateEditUI();f.elements.study_id.focus();
+}
+function stopEdit(){editing=null;f.reset();updateEditUI()}
+$('cancelEdit').onclick=stopEdit;
+
+// add / update patient
+f.addEventListener('submit',async e=>{
+  e.preventDefault();const r={};
+  ALL.forEach(([k,,t])=>{r[k]=t=='m'?[...f.querySelectorAll(`[name="${k}"]:checked`)].map(c=>c.value).join('; '):t=='g'?gVal(k):f.elements[k].value.trim()});
+  if(!r.study_id)return say('Enter a Study ID.',1);
+  await load();
+  if(P.some(p=>p.Id!==(editing&&editing.Id)&&(p.study_id||'').toLowerCase()==r.study_id.toLowerCase()))return say(`Study ID ${r.study_id} already exists. Use a different ID.`,1);
+  const body={};
+  if(editing){ALL.forEach(([k,,t])=>{body[k]=(t=='n'||t=='c')?(r[k]===''?'':Number(r[k])):r[k]})}
+  else ALL.forEach(([k,,t])=>{if(r[k]!=='')body[k]=(t=='n'||t=='c')?Number(r[k]):r[k]});
+  EX.forEach(k=>{const o=f.elements[k+'_other'].value.trim();if(editing||o)body[k+'_other']=o});
+  try{
+    if(editing){await api('PATCH','',{Id:editing.Id,...body});say(`Updated patient ${r.study_id}.`)}
+    else{await api('POST','',body);say(`Saved patient ${r.study_id}.`)}
+    const wasEdit=editing;stopEdit();await load();if(!wasEdit)show(0);
+  }
+  catch(err){say('Could not save. '+err.message,1)}
+});
+
+// current patients
+function render(){
+  $('cnt').textContent=P.length;
+  const q=$('q').value.trim().toLowerCase(),rows=P.filter(p=>(p.study_id||'').toLowerCase().includes(q)||(p.accident_id||'').toLowerCase().includes(q));
+  $('tb').innerHTML=rows.map(p=>`<tr><td><b>${esc(p.study_id)}</b></td><td>${esc(p.accident_id)}</td><td>${esc(p.age)}</td><td>${esc(lab('sex',p.sex))}</td><td>${esc(lab('road_user',p.road_user))}</td><td>${esc(p.iss)}</td><td>${esc(p.icu)}</td><td>${esc(lab('outcome',p.outcome))}</td><td class="act"><button class="b o s" data-a="v" data-id="${esc(p.study_id)}">View</button> <button class="b o s" data-a="e" data-id="${esc(p.study_id)}">Edit</button> <button class="b d s" data-a="x" data-id="${esc(p.study_id)}">Delete</button></td></tr>`).join('');
+  $('tw').hidden=!rows.length;
+  $('empty').hidden=!!rows.length;
+  $('empty').textContent=P.length?'No patient matches that ID.':'No patients yet. Use Add patient to enter the first record.';
+}
+$('q').addEventListener('input',render);
+function show(adding){
+  $('add').hidden=!adding;$('cur').hidden=adding;$('addBtn').hidden=adding;$('back').hidden=!adding;
+  if(adding)f.elements.study_id.focus();else{stopEdit();render()}
+  scrollTo(0,0);
+}
+$('addBtn').onclick=()=>{stopEdit();show(1)};$('back').onclick=()=>show(0);
+
+// settings dialog
+function openSet(){$('sp').value=PW;if(!$('set').open)$('set').showModal()}
+$('setBtn').onclick=openSet;
+$('sf').addEventListener('submit',e=>{
+  e.preventDefault();
+  if(document.activeElement&&document.activeElement.value=='cancel'){$('set').close();return}
+  PW=$('sp').value;localStorage.setItem('rtaPw',PW);$('set').close();load();
+});
+
+// view + delete
+const dlg=$('dlg');let pend=null;
+$('tb').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  const p=P.find(x=>x.study_id==b.dataset.id);if(!p)return;
+  if(b.dataset.a=='v'){
+    dlg.innerHTML=`<form method="dialog"><h2>Patient ${esc(p.study_id)}</h2><div class="bd">${S.map(([t,fs])=>{
+      const r=fs.filter(x=>p[x[0]]).map(x=>`<dt>${x[1].replace(/ \(auto\)/,'')}</dt><dd>${esc(lab(x[0],p[x[0]])+(p[x[0]+'_other']?' — '+p[x[0]+'_other']:''))}</dd>`).join('');
+      return r?`<h3>${t}</h3><dl>${r}</dl>`:''}).join('')}</div><div class="ft"><button class="b o" value="x">Close</button></div></form>`;
+    dlg.showModal();
+  }else if(b.dataset.a=='e'){startEdit(p)}
+  else{
+    pend=p.study_id;
+    dlg.innerHTML=`<form method="dialog"><h2>Delete patient ${esc(p.study_id)}?</h2><p>This permanently removes the record from NocoDB. Export CSV first if you need a copy.</p><div class="ft"><button class="b o" value="x">Cancel</button><button class="b dd" value="del">Delete patient</button></div></form>`;
+    dlg.showModal();
+  }
+});
+dlg.addEventListener('close',async()=>{
+  const id=pend,go=dlg.returnValue=='del';pend=null;dlg.returnValue='';
+  if(!go||!id)return;
+  const p=P.find(x=>x.study_id==id);
+  try{await api('DELETE','',{Id:p.Id});await load();say(`Deleted patient ${id}.`)}
+  catch(err){say('Could not delete. '+err.message,1)}
+});
+
+// export csv
+const q=s=>{s=String(s??'');return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+$('exp').onclick=async()=>{
+  if(!P.length)return say('No patients to export yet.',1);
+  const keys=[...ALL.map(x=>x[0]),...EX.map(k=>k+'_other'),'CreatedAt'];
+  const csv='\ufeff'+[keys.join(','),...P.map(p=>keys.map(k=>q(p[k])).join(','))].join('\r\n');
+  const name=`rta_patients_${new Date().toISOString().slice(0,10)}.csv`;
+  try{
+    const dl=window.claude?await claude.use('downloads'):null;
+    if(dl){await dl.save({filename:name,data:csv});say('CSV ready.')}
+    else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;a.click();say('CSV downloaded.')}
+  }catch(err){if(!err||err.code!='declined')say('Could not export the CSV.',1)}
+};
+render();load();
+</script>
+</body>
+</html>
