@@ -8,7 +8,10 @@
 <style>
 :root{--bg:#f3f6f7;--card:#fff;--ink:#15232b;--mute:#586a74;--line:#d3dce1;--acc:#17607f;--on:#fff;--bad:#b3261e;--tint:#e8f1f5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1519;--card:#172127;--ink:#e5edf0;--mute:#94a6af;--line:#2a3941;--acc:#62b6d8;--on:#08161c;--bad:#ff8f86;--tint:#1b2c35}}
-:root[data-theme="dark"]{--bg:#0e1519;--card:#172127;--ink:#e5edf0;--mute:#94a6af;--line:#2a3941;--acc:#62b6d8;--on:#08161c;--bad:#ff8f86;--tint:#1b2c35}
+:root[data-theme="dark"]{--bg:#0b1118;--card:#131c26;--ink:#e5edf0;--mute:#8ea1ae;--line:#243342;--acc:#5bb8e6;--on:#07151d;--bad:#ff8f86;--tint:#16232f;color-scheme:dark}
+:root[data-theme="blue"]{--bg:#081120;--card:#0e1c31;--ink:#d9e9ff;--mute:#7f9cc4;--line:#1e3350;--acc:#4ea1ff;--on:#04101f;--bad:#ff8a80;--tint:#10233f;color-scheme:dark}
+:root[data-theme="green"]{--bg:#07120d;--card:#101f17;--ink:#d9f2e4;--mute:#7fa892;--line:#1f3a2b;--acc:#3ddc84;--on:#04130b;--bad:#ff9a8f;--tint:#0f2a1c;color-scheme:dark}
+:root[data-theme="light"]{color-scheme:light}
 [hidden]{display:none!important}
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -22,6 +25,7 @@ h1{font-size:19px;margin:0;font-weight:600}
 .sp{flex:1}
 main{padding-top:18px;padding-bottom:28px}
 fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:0 0 16px;padding:12px 16px 16px;min-width:0}
+fieldset:disabled{opacity:.55}
 legend{font-weight:600;padding:0 6px}
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 16px}
 .w{grid-column:1/-1}
@@ -62,6 +66,21 @@ dt{color:var(--mute)}dd{margin:0}
 .setf label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute)}
 #msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;max-width:90vw;z-index:9}
 #msg:empty{display:none}#msg.bad{background:var(--bad);color:#fff}
+/* --- theme polish --- */
+body,header,fieldset,.tw,dialog,.sv{transition:background-color .3s ease,border-color .3s ease}
+body,header,h1,.sub,legend,label,td,th{transition:color .3s ease}
+.b{transition:filter .15s ease,box-shadow .2s ease,background-color .3s ease,color .3s ease,border-color .3s ease}
+.b:hover{filter:brightness(1.12)}
+.b:not(.o):hover{box-shadow:0 2px 14px color-mix(in srgb,var(--acc) 45%,transparent)}
+.b.o:hover{box-shadow:0 2px 10px color-mix(in srgb,var(--acc) 25%,transparent)}
+#themeSel{appearance:none;-webkit-appearance:none;width:auto;padding:8px 30px 8px 14px;border-radius:999px;cursor:pointer;font-weight:500;
+  border:1px solid var(--acc);color:var(--acc);background-color:transparent;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc) 50%),linear-gradient(135deg,var(--acc) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 55%,calc(100% - 12px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+#themeSel:hover{box-shadow:0 2px 12px color-mix(in srgb,var(--acc) 35%,transparent)}
+header{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 6%,var(--card)),var(--card))}
+tr:hover td{background:color-mix(in srgb,var(--acc) 7%,transparent)}
+fieldset{border-top:2px solid color-mix(in srgb,var(--acc) 45%,var(--line))}
 </style>
 </head>
 <body>
@@ -71,7 +90,8 @@ dt{color:var(--mute)}dd{margin:0}
   <button class="b" id="addBtn" type="button">Add patient</button>
   <button class="b o" id="setBtn" type="button">Settings</button>
   <button class="b o" id="back" type="button" hidden>Current patients</button>
-  <button class="b o" id="exp" type="button">Export CSV</button>
+  <select id="themeSel" aria-label="Theme"><option value="">Auto</option><option value="light">Light</option><option value="dark">Dark</option><option value="blue">Blue</option><option value="green">Green</option></select>
+<button class="b o" id="exp" type="button">Export CSV</button>
 </div></header>
 
 <main>
@@ -88,19 +108,21 @@ dt{color:var(--mute)}dd{margin:0}
 <dialog id="dlg"></dialog>
 <dialog id="set">
   <form id="sf" method="dialog">
-    <h2>Sign in</h2>
-    <p class="note">Enter the access password. It is remembered on this device only. The NocoDB token and table ID are kept on the server.</p>
+    <h2>NocoDB connection</h2>
+    <p class="note">Stored only in this browser's local storage, and used to call your NocoDB instance directly.</p>
     <div class="setf">
-      <label>Access password<input id="sp" type="password" autocomplete="current-password" required></label>
+      <label>Link (NocoDB base URL)<input id="nUrl" type="url" placeholder="https://app.nocodb.com" required></label>
+      <label>Table ID<input id="nTable" type="text" placeholder="mxxxxxxxxxxxxxxx" required></label>
+      <label>API token<input id="nToken" type="password" autocomplete="off" required></label>
     </div>
-    <div class="ft"><button class="b o" value="cancel" type="submit">Cancel</button><button class="b" id="saveSet" value="save" type="submit">Sign in</button></div>
+    <div class="ft"><button class="b o" value="cancel" type="submit" formnovalidate>Cancel</button><button class="b" id="saveSet" value="save" type="submit">Save &amp; connect</button></div>
   </form>
 </dialog>
 <div id="msg" role="status"></div>
 
 <script>
 const YN=['Yes','No'],YNU=['Yes','No','Unknown'],YNA=['Yes','No','Unknown','Not applicable'];
-// [key, label, type, options]  types: t text, p phone, n number, d date, h time, a textarea, c coded select (value = 1..n), s text select, m multi-check, g geo cascade (group:level)
+// [key, label, type, options]  types: t text, p phone, n number, d date, h time, a textarea, c coded select (same as s, kept for grouping), s text select, m multi-check, g geo cascade (group:level)
 // Any option named Other/Others automatically opens a free-text box (saved as <key>_other).
 const VEH=['Bus','Minibus','Truck','Covered van','Pickup','Microbus','Car','Jeep','Motorcycle','Bicycle','Rickshaw','Rickshaw van','Easy bike (battery rickshaw)','Three wheeler (CNG)','Human hauler (Leguna)','Tempo','Nosimon/Karimon','Tractor','Power tiller','Tanker','Lorry','Ambulance','Train','Bullock cart','Other'];
 const S=[
@@ -233,22 +255,27 @@ cmp:['Akbar Shah','Bakalia','Bandar','Bayazid Bostami','Chandgaon','Chawkbazar',
 // -----------------
 const ALL=S.flatMap(s=>s[1]),FM=Object.fromEntries(ALL.map(f=>[f[0],f])),$=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-// ---- Access password (NocoDB URL/token/table live in Vercel env vars, never in the browser) ----
-let PW=localStorage.getItem('rtaPw')||'';
+// ---- Direct NocoDB connection: link, table ID and API token live only in this browser's local storage ----
+let NURL=localStorage.getItem('rtaUrl')||'',NTABLE=localStorage.getItem('rtaTable')||'',NTOKEN=localStorage.getItem('rtaToken')||'';
 let P=[],editing=null;
+// theme picker: '' = follow system, otherwise fixed palette
+const applyTheme=t=>{t?document.documentElement.dataset.theme=t:document.documentElement.removeAttribute('data-theme');localStorage.setItem('rtaTheme',t);$('themeSel').value=t};
+$('themeSel').onchange=e=>applyTheme(e.target.value);
+applyTheme(localStorage.getItem('rtaTheme')||'');
 const api=async(method,qs='',body)=>{
-  const r=await fetch(`/api/records${qs}`,{method,headers:{'x-app-password':PW,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
-  if(r.status===401){PW='';localStorage.removeItem('rtaPw');openSet();throw new Error('Wrong or missing password')}
+  if(!NURL||!NTABLE||!NTOKEN){openSet();throw new Error('Not connected to NocoDB yet')}
+  const r=await fetch(`${NURL.replace(/\/+$/,'')}/api/v2/tables/${NTABLE}/records${qs}`,{method,headers:{'xc-token':NTOKEN,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
+  if(r.status===401||r.status===403){NTOKEN='';localStorage.removeItem('rtaToken');openSet();throw new Error('Invalid API token or table ID')}
   if(!r.ok)throw new Error(`Server ${r.status}: ${(await r.text()).slice(0,160)}`);
   return r.json();
 };
 async function load(){
-  if(!PW){openSet();return}
+  if(!NURL||!NTABLE||!NTOKEN){openSet();return}
   try{const L=[];for(let o=0;;o+=100){const d=await api('GET',`?limit=100&offset=${o}&sort=Id`);L.push(...d.list);if(!d.list.length||(d.pageInfo&&d.pageInfo.isLastPage))break}P=L;render()}
   catch(e){say('Could not load records. '+e.message,1)}
 }
 let tm;function say(t,bad){const m=$('msg');m.textContent=t;m.className=bad?'bad':'';clearTimeout(tm);tm=setTimeout(()=>m.textContent='',4500)}
-const lab=(k,v)=>{const f=FM[k];if(v===''||v==null)return '';return f&&f[2]=='c'?(f[3][v-1]||v):v};
+const lab=(k,v)=>v===''||v==null?'':v;
 
 // build the form
 const T={t:'text',n:'number',d:'date',h:'time',p:'tel'};
@@ -256,13 +283,13 @@ const isO=x=>x=='Other'||x=='Others';
 const EX=ALL.filter(x=>'csm'.includes(x[2])&&x[3].some(isO)).map(x=>x[0]);
 function ctl([k,l,t,o]){
   const ot=EX.includes(k)?`<input name="${k}_other" type="text" placeholder="Please specify" hidden>`:'';
-  if(t=='c'||t=='s')return `<select name="${k}"><option value=""></option>${o.map((x,i)=>`<option${isO(x)?' data-o="1"':''}${t=='c'?` value="${i+1}">${i+1} – ${x}`:`>${x}`}</option>`).join('')}</select>${ot}`;
+  if(t=='c'||t=='s')return `<select name="${k}"><option value=""></option>${o.map(x=>`<option${isO(x)?' data-o="1"':''}>${x}</option>`).join('')}</select>${ot}`;
   if(t=='a')return `<textarea name="${k}" rows="2"></textarea>`;
   if(t=='m')return `<div class="chk">${o.map(x=>`<label><input type="checkbox" name="${k}" value="${x}">${x}</label>`).join('')}</div>${ot}`;
   if(t=='g')return `<select name="${k}" data-g="${o}"></select><input name="${k}_other" type="text" placeholder="Type name" hidden>`;
   return `<input name="${k}" type="${T[t]}"${t=='n'?` step="any" min="${o?o[0]:0}"${o?` max="${o[1]}"`:''}`:''}${k=='study_id'?' required':''}${k=='iss'?' readonly':''}>`;
 }
-$('f').innerHTML=S.map(([t,fs],i)=>`<fieldset><legend>${i+1}. ${t}</legend><div class="g">${fs.map(f=>`<${f[2]=='m'?'div':'label'} class="fl${f[2]=='m'||f[2]=='a'?' w':''}">${f[1]}${ctl(f)}</${f[2]=='m'?'div':'label'}>`).join('')}</div></fieldset>`).join('')
+$('f').innerHTML=S.map(([t,fs],i)=>`<fieldset data-sec="${i}"><legend>${i+1}. ${t}</legend><div class="g">${fs.map(f=>`<${f[2]=='m'?'div':'label'} class="fl${f[2]=='m'||f[2]=='a'?' w':''}">${f[1]}${ctl(f)}</${f[2]=='m'?'div':'label'}>`).join('')}</div></fieldset>`).join('')
   +`<div class="sv"><span class="editnote" id="editNote" hidden></span><button class="b" type="submit" id="saveBtn">Save patient</button><button class="b o" type="button" id="cancelEdit" hidden>Cancel edit</button><button class="b o" type="reset">Clear form</button></div>`;
 
 const f=$('f'),v=k=>f.elements[k].value,hm=s=>{const[a,b]=s.split(':');return a*60+ +b};
@@ -272,6 +299,27 @@ function syncOther(){EX.forEach(k=>{const o=f.elements[k+'_other'],c=f.elements[
   o.hidden=!on;if(!on)o.value=''})}
 // vehicle 1/2/3 fields follow the number of vehicles
 function vehVis(){const n=+v('n_vehicles')||0;[1,2,3].forEach(i=>{const e=f.elements['vehicle_'+i];e.closest('label').hidden=n<i;if(n<i)e.value=''});syncOther()}
+// freeze clinical fields when Condition on arrival is "Brought dead" — these don't apply to a patient who arrived dead
+const FREEZE_FIELDS=['incident_time']; // arrival_time stays editable even when brought dead
+const FREEZE_SECTIONS=[3,4]; // Pre-hospital & treatment, Injury & severity assessment — fully frozen
+const FREEZE_SECTION_PARTIAL={5:['death_cause']}; // Management and hospital outcome — only Cause of death stays open
+function clearField(k){
+  if(FM[k][2]=='m')f.querySelectorAll(`[name="${k}"]`).forEach(c=>c.checked=false);
+  else f.elements[k].value='';
+  if(EX.includes(k)&&f.elements[k+'_other'])f.elements[k+'_other'].value='';
+}
+function applyFreeze(clear){
+  const dead=v('arrival_condition')=='Brought dead';
+  FREEZE_FIELDS.forEach(k=>{f.elements[k].disabled=dead;if(dead&&clear)clearField(k)});
+  FREEZE_SECTIONS.forEach(i=>{const fs=f.querySelector(`fieldset[data-sec="${i}"]`);fs.disabled=dead;if(dead&&clear)S[i][1].forEach(([k])=>clearField(k))});
+  Object.entries(FREEZE_SECTION_PARTIAL).forEach(([i,keep])=>{
+    S[i][1].forEach(([k])=>{
+      if(keep.includes(k))return;
+      f.elements[k].disabled=dead;if(dead&&clear)clearField(k);
+    });
+  });
+  if(dead&&clear)computeISS();
+}
 // geo cascade: district -> upazila -> thana (thana only when upazila is CMP)
 const GL={res:['district','res_upazila','res_thana'],acc:['accident_district','accident_upazila','accident_thana']};
 const gEl=k=>f.elements[k],gOt=k=>f.elements[k+'_other'];
@@ -295,6 +343,7 @@ function initGeo(){for(const g in GL)[0,1,2].forEach(i=>fillGeo(g,i))}
 f.addEventListener('change',e=>{
   const t=e.target,gd=t.dataset&&t.dataset.g;
   if(gd){const[g,i]=gd.split(':'),oth=gOt(t.name);oth.hidden=t.value!='__other__';if(oth.hidden)oth.value='';for(let j=+i+1;j<3;j++)fillGeo(g,j);return}
+  if(t.name=='arrival_condition')applyFreeze(true);
   syncOther();
 });
 
@@ -311,8 +360,8 @@ f.addEventListener('input',e=>{
   if(v('accident_date'))f.elements.day_of_week.value=new Date(v('accident_date')+'T00:00').toLocaleDateString('en-US',{weekday:'long'});
   if(v('accident_time')&&v('arrival_time'))f.elements.minutes_to_hospital.value=(hm(v('arrival_time'))-hm(v('accident_time'))+1440)%1440;
 });
-f.addEventListener('reset',()=>setTimeout(()=>{initGeo();vehVis()}));
-initGeo();vehVis();
+f.addEventListener('reset',()=>setTimeout(()=>{initGeo();vehVis();applyFreeze(false)}));
+initGeo();vehVis();applyFreeze(false);
 
 // edit mode
 function updateEditUI(){
@@ -329,7 +378,7 @@ function startEdit(p){
   });
   EX.forEach(k=>f.elements[k+'_other'].value=p[k+'_other']??'');
   for(const g in GL)GL[g].forEach((k,i)=>setGeo(g,i,p[k]));
-  vehVis();syncOther();computeISS();
+  vehVis();syncOther();computeISS();applyFreeze(false);
   updateEditUI();f.elements.study_id.focus();
 }
 function stopEdit(){editing=null;f.reset();updateEditUI()}
@@ -343,8 +392,8 @@ f.addEventListener('submit',async e=>{
   await load();
   if(P.some(p=>p.Id!==(editing&&editing.Id)&&(p.study_id||'').toLowerCase()==r.study_id.toLowerCase()))return say(`Study ID ${r.study_id} already exists. Use a different ID.`,1);
   const body={};
-  if(editing){ALL.forEach(([k,,t])=>{body[k]=(t=='n'||t=='c')?(r[k]===''?'':Number(r[k])):r[k]})}
-  else ALL.forEach(([k,,t])=>{if(r[k]!=='')body[k]=(t=='n'||t=='c')?Number(r[k]):r[k]});
+  if(editing){ALL.forEach(([k,,t])=>{body[k]=t=='n'?(r[k]===''?'':Number(r[k])):r[k]})}
+  else ALL.forEach(([k,,t])=>{if(r[k]!=='')body[k]=t=='n'?Number(r[k]):r[k]});
   EX.forEach(k=>{const o=f.elements[k+'_other'].value.trim();if(editing||o)body[k+'_other']=o});
   try{
     if(editing){await api('PATCH','',{Id:editing.Id,...body});say(`Updated patient ${r.study_id}.`)}
@@ -372,12 +421,14 @@ function show(adding){
 $('addBtn').onclick=()=>{stopEdit();show(1)};$('back').onclick=()=>show(0);
 
 // settings dialog
-function openSet(){$('sp').value=PW;if(!$('set').open)$('set').showModal()}
+function openSet(){$('nUrl').value=NURL;$('nTable').value=NTABLE;$('nToken').value=NTOKEN;if(!$('set').open)$('set').showModal()}
 $('setBtn').onclick=openSet;
 $('sf').addEventListener('submit',e=>{
   e.preventDefault();
   if(document.activeElement&&document.activeElement.value=='cancel'){$('set').close();return}
-  PW=$('sp').value;localStorage.setItem('rtaPw',PW);$('set').close();load();
+  NURL=$('nUrl').value.trim();NTABLE=$('nTable').value.trim();NTOKEN=$('nToken').value.trim();
+  localStorage.setItem('rtaUrl',NURL);localStorage.setItem('rtaTable',NTABLE);localStorage.setItem('rtaToken',NTOKEN);
+  $('set').close();load();
 });
 
 // view + delete
@@ -401,7 +452,14 @@ dlg.addEventListener('close',async()=>{
   const id=pend,go=dlg.returnValue=='del';pend=null;dlg.returnValue='';
   if(!go||!id)return;
   const p=P.find(x=>x.study_id==id);
-  try{await api('DELETE','',{Id:p.Id});await load();say(`Deleted patient ${id}.`)}
+  if(!p)return;
+  if(p.Id==null||p.Id===''){say('This record has no NocoDB Id. Reload the patient list (refresh the page) and try again.',1);return}
+  try{
+    await api('DELETE','',{Id:p.Id});
+    P=P.filter(x=>x.Id!==p.Id);render();
+    say(`Deleted patient ${id}.`);
+    load();
+  }
   catch(err){say('Could not delete. '+err.message,1)}
 });
 
