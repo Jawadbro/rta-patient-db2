@@ -88,7 +88,7 @@ fieldset{border-top:2px solid color-mix(in srgb,var(--acc) 45%,var(--line))}
   <div><h1>RTA patient database</h1><div class="sub">Road traffic accident study, Chattogram</div></div>
   <span class="sp"></span>
   <button class="b" id="addBtn" type="button">Add patient</button>
-  <button class="b o" id="setBtn" type="button">Settings</button>
+  <button class="b o" id="setBtn" type="button">Password</button>
   <button class="b o" id="back" type="button" hidden>Current patients</button>
   <select id="themeSel" aria-label="Theme"><option value="">Auto</option><option value="light">Light</option><option value="dark">Dark</option><option value="blue">Blue</option><option value="green">Green</option></select>
 <button class="b o" id="exp" type="button">Export CSV</button>
@@ -108,14 +108,12 @@ fieldset{border-top:2px solid color-mix(in srgb,var(--acc) 45%,var(--line))}
 <dialog id="dlg"></dialog>
 <dialog id="set">
   <form id="sf" method="dialog">
-    <h2>NocoDB connection</h2>
-    <p class="note">Stored only in this browser's local storage, and used to call your NocoDB instance directly.</p>
+    <h2>Access password</h2>
+    <p class="note">Enter the password to open the patient database. It is kept only in this browser.</p>
     <div class="setf">
-      <label>Link (NocoDB base URL)<input id="nUrl" type="url" placeholder="https://app.nocodb.com" required></label>
-      <label>Table ID<input id="nTable" type="text" placeholder="mxxxxxxxxxxxxxxx" required></label>
-      <label>API token<input id="nToken" type="password" autocomplete="off" required></label>
+      <label>Password<input id="nPw" type="password" autocomplete="current-password" required></label>
     </div>
-    <div class="ft"><button class="b o" value="cancel" type="submit" formnovalidate>Cancel</button><button class="b" id="saveSet" value="save" type="submit">Save &amp; connect</button></div>
+    <div class="ft"><button class="b o" value="cancel" type="submit" formnovalidate>Cancel</button><button class="b" id="saveSet" value="save" type="submit">Unlock</button></div>
   </form>
 </dialog>
 <div id="msg" role="status"></div>
@@ -255,22 +253,22 @@ cmp:['Akbar Shah','Bakalia','Bandar','Bayazid Bostami','Chandgaon','Chawkbazar',
 // -----------------
 const ALL=S.flatMap(s=>s[1]),FM=Object.fromEntries(ALL.map(f=>[f[0],f])),$=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-// ---- Direct NocoDB connection: link, table ID and API token live only in this browser's local storage ----
-let NURL=localStorage.getItem('rtaUrl')||'',NTABLE=localStorage.getItem('rtaTable')||'',NTOKEN=localStorage.getItem('rtaToken')||'';
+// ---- Access password only (NocoDB URL/token/table live in Vercel env vars, never in the browser) ----
+let PW=localStorage.getItem('rtaPw')||'';
 let P=[],editing=null;
 // theme picker: '' = follow system, otherwise fixed palette
 const applyTheme=t=>{t?document.documentElement.dataset.theme=t:document.documentElement.removeAttribute('data-theme');localStorage.setItem('rtaTheme',t);$('themeSel').value=t};
 $('themeSel').onchange=e=>applyTheme(e.target.value);
 applyTheme(localStorage.getItem('rtaTheme')||'');
 const api=async(method,qs='',body)=>{
-  if(!NURL||!NTABLE||!NTOKEN){openSet();throw new Error('Not connected to NocoDB yet')}
-  const r=await fetch(`${NURL.replace(/\/+$/,'')}/api/v2/tables/${NTABLE}/records${qs}`,{method,headers:{'xc-token':NTOKEN,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
-  if(r.status===401||r.status===403){NTOKEN='';localStorage.removeItem('rtaToken');openSet();throw new Error('Invalid API token or table ID')}
+  if(!PW){openSet();throw new Error('Password required')}
+  const r=await fetch(`/api/records${qs}`,{method,headers:{'x-app-password':PW,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
+  if(r.status===401){PW='';localStorage.removeItem('rtaPw');openSet();throw new Error('Wrong or missing password')}
   if(!r.ok)throw new Error(`Server ${r.status}: ${(await r.text()).slice(0,160)}`);
   return r.json();
 };
 async function load(){
-  if(!NURL||!NTABLE||!NTOKEN){openSet();return}
+  if(!PW){openSet();return}
   try{const L=[];for(let o=0;;o+=100){const d=await api('GET',`?limit=100&offset=${o}&sort=Id`);L.push(...d.list);if(!d.list.length||(d.pageInfo&&d.pageInfo.isLastPage))break}P=L;render()}
   catch(e){say('Could not load records. '+e.message,1)}
 }
@@ -421,13 +419,13 @@ function show(adding){
 $('addBtn').onclick=()=>{stopEdit();show(1)};$('back').onclick=()=>show(0);
 
 // settings dialog
-function openSet(){$('nUrl').value=NURL;$('nTable').value=NTABLE;$('nToken').value=NTOKEN;if(!$('set').open)$('set').showModal()}
+function openSet(){$('nPw').value='';if(!$('set').open)$('set').showModal()}
 $('setBtn').onclick=openSet;
 $('sf').addEventListener('submit',e=>{
   e.preventDefault();
   if(document.activeElement&&document.activeElement.value=='cancel'){$('set').close();return}
-  NURL=$('nUrl').value.trim();NTABLE=$('nTable').value.trim();NTOKEN=$('nToken').value.trim();
-  localStorage.setItem('rtaUrl',NURL);localStorage.setItem('rtaTable',NTABLE);localStorage.setItem('rtaToken',NTOKEN);
+  PW=$('nPw').value;
+  localStorage.setItem('rtaPw',PW);
   $('set').close();load();
 });
 
