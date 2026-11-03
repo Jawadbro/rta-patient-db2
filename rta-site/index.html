@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RTA patient database</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#17607f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RTA patients">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f3f6f7;--card:#fff;--ink:#15232b;--mute:#586a74;--line:#d3dce1;--acc:#17607f;--on:#fff;--bad:#b3261e;--tint:#e8f1f5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -81,12 +86,24 @@ body,header,h1,.sub,legend,label,td,th{transition:color .3s ease}
 header{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 6%,var(--card)),var(--card))}
 tr:hover td{background:color-mix(in srgb,var(--acc) 7%,transparent)}
 fieldset{border-top:2px solid color-mix(in srgb,var(--acc) 45%,var(--line))}
+/* --- offline / sync --- */
+.cnt{margin-left:8px;color:var(--mute);font-weight:400;font-size:14px}
+.net{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.net.on{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 45%,var(--line));background:color-mix(in srgb,var(--acc) 8%,transparent)}
+.net.pending,.net.busy{color:var(--acc);border-color:var(--acc);background:var(--tint)}
+.net.off{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 8%,transparent)}
+.banner{margin:0 0 16px;padding:10px 14px;border-radius:8px;border:1px solid color-mix(in srgb,var(--acc) 45%,var(--line));background:var(--tint);color:var(--ink);font-size:13px}
+.pill{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;background:var(--tint);color:var(--acc);vertical-align:middle}
+.pill.dirty{background:color-mix(in srgb,var(--acc) 18%,transparent)}
+.b:disabled{opacity:.5;cursor:not-allowed;filter:none;box-shadow:none}
 </style>
 </head>
 <body>
 <header><div class="bar">
   <div><h1>RTA patient database</h1><div class="sub">Road traffic accident study, Chattogram</div></div>
   <span class="sp"></span>
+  <span id="net" class="net" role="status" title="Connection and sync status">Starting…</span>
+  <button class="b o" id="syncBtn" type="button" hidden>Sync now</button>
   <button class="b" id="addBtn" type="button">Add patient</button>
   <button class="b o" id="setBtn" type="button">Password</button>
   <button class="b o" id="back" type="button" hidden>Current patients</button>
@@ -95,12 +112,13 @@ fieldset{border-top:2px solid color-mix(in srgb,var(--acc) 45%,var(--line))}
 </div></header>
 
 <main>
+  <div class="banner" id="offline" hidden><b>Offline.</b> New and edited patients are saved on this device and will sync to NocoDB when the connection returns. Don't clear browser data until the sync completes.</div>
   <section id="add" hidden>
     <form id="f" autocomplete="off"></form>
   </section>
   <section id="cur">
     <h2 class="ttl">Current patients<span class="cnt" id="cnt">0</span></h2>
-    <div class="tools"><input id="q" type="search" placeholder="Search by Study ID or Accident ID" aria-label="Search by Study ID or Accident ID"><span class="note">Records are stored in NocoDB. Export CSV for a local copy.</span></div>
+    <div class="tools"><input id="q" type="search" placeholder="Search by Study ID or Accident ID" aria-label="Search by Study ID or Accident ID"><span class="note" id="note">Records are stored in NocoDB. Export CSV for a local copy.</span></div>
     <div class="tw" id="tw"><table><thead><tr><th>Study ID</th><th>Accident ID</th><th>Age</th><th>Sex</th><th>Road-user type</th><th>ISS</th><th>ICU</th><th>Outcome</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
     <div class="empty" id="empty"></div>
   </section>
@@ -109,11 +127,11 @@ fieldset{border-top:2px solid color-mix(in srgb,var(--acc) 45%,var(--line))}
 <dialog id="set">
   <form id="sf" method="dialog">
     <h2>Access password</h2>
-    <p class="note">Enter the password to open the patient database. It is kept only in this browser.</p>
+    <p class="note">Needed to sync patients with NocoDB. It is kept only in this browser. You can still enter patients offline — they upload after you unlock and reconnect.</p>
     <div class="setf">
       <label>Password<input id="nPw" type="password" autocomplete="current-password" required></label>
     </div>
-    <div class="ft"><button class="b o" value="cancel" type="submit" formnovalidate>Cancel</button><button class="b" id="saveSet" value="save" type="submit">Unlock</button></div>
+    <div class="ft"><button class="b o" value="cancel" type="submit" formnovalidate>Cancel</button><button class="b" id="saveSet" value="save" type="submit">Unlock &amp; sync</button></div>
   </form>
 </dialog>
 <div id="msg" role="status"></div>
@@ -255,22 +273,152 @@ const ALL=S.flatMap(s=>s[1]),FM=Object.fromEntries(ALL.map(f=>[f[0],f])),$=id=>d
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 // ---- Access password only (NocoDB URL/token/table live in Vercel env vars, never in the browser) ----
 let PW=localStorage.getItem('rtaPw')||'';
-let P=[],editing=null;
+let P=[],editing=null,outbox=[],lastSync=0,busy=false,ready=false,refreshQueued=false,refreshForce=false,syncError='';
+let netOk=navigator.onLine!==false;
+// Credentials left behind by the old direct-to-NocoDB version are no longer needed.
+['rtaUrl','rtaTable','rtaToken'].forEach(k=>localStorage.removeItem(k));
 // theme picker: '' = follow system, otherwise fixed palette
 const applyTheme=t=>{t?document.documentElement.dataset.theme=t:document.documentElement.removeAttribute('data-theme');localStorage.setItem('rtaTheme',t);$('themeSel').value=t};
 $('themeSel').onchange=e=>applyTheme(e.target.value);
 applyTheme(localStorage.getItem('rtaTheme')||'');
+
+// ---- Offline store: cached patients + pending operations, written atomically ----
+const DB_NAME='rta-offline',DB_STORE='kv',LS_KEY='rta.offline.v1';
+let dbP=null,useIDB=typeof indexedDB!=='undefined';
+function openDB(){
+  if(!useIDB)return Promise.reject(new Error('IndexedDB unavailable'));
+  if(dbP)return dbP;
+  dbP=new Promise((res,rej)=>{
+    let r;try{r=indexedDB.open(DB_NAME,1)}catch(e){return rej(e)}
+    r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(DB_STORE))d.createObjectStore(DB_STORE)};
+    r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('IndexedDB blocked'));
+  }).catch(e=>{useIDB=false;throw e});
+  return dbP;
+}
+async function storeGet(){
+  try{
+    const d=await openDB();
+    return await new Promise((res,rej)=>{const t=d.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('state');t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error)});
+  }catch{
+    useIDB=false;
+    try{const s=localStorage.getItem(LS_KEY);return s?JSON.parse(s):null}catch{return null}
+  }
+}
+async function storeSet(v){
+  const raw=JSON.stringify(v);
+  try{
+    const d=await openDB();
+    await new Promise((res,rej)=>{const t=d.transaction(DB_STORE,'readwrite');t.objectStore(DB_STORE).put(v,'state');t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)});
+  }catch{useIDB=false;localStorage.setItem(LS_KEY,raw)}
+}
+async function persist(){await storeSet({v:1,records:P,outbox,lastSync,savedAt:Date.now()})}
+const localId=()=>'local:'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+const offlineErr=()=>Object.assign(new Error('No connection'),{offline:true});
 const api=async(method,qs='',body)=>{
-  if(!PW){openSet();throw new Error('Password required')}
-  const r=await fetch(`/api/records${qs}`,{method,headers:{'x-app-password':PW,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
-  if(r.status===401){PW='';localStorage.removeItem('rtaPw');openSet();throw new Error('Wrong or missing password')}
-  if(!r.ok)throw new Error(`Server ${r.status}: ${(await r.text()).slice(0,160)}`);
-  return r.json();
+  if(navigator.onLine===false)throw offlineErr();
+  if(!PW)throw Object.assign(new Error('Password required'),{auth:true});
+  let r;
+  try{
+    r=await fetch(`/api/records${qs}`,{method,headers:{'x-app-password':PW,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
+  }catch{netOk=false;throw offlineErr()}
+  netOk=true;
+  if(r.status===401){PW='';localStorage.removeItem('rtaPw');openSet();throw Object.assign(new Error('Wrong or missing password'),{status:401,auth:true})}
+  if(!r.ok){const t=await r.text().catch(()=>'');throw Object.assign(new Error(`Server ${r.status}: ${t.slice(0,160)}`),{status:r.status})}
+  const t=await r.text();
+  if(!t)return {};
+  try{return JSON.parse(t)}catch{throw Object.assign(new Error('Unexpected response from the server'),{status:502})}
 };
-async function load(){
-  if(!PW){openSet();return}
-  try{const L=[];for(let o=0;;o+=100){const d=await api('GET',`?limit=100&offset=${o}&sort=Id`);L.push(...d.list);if(!d.list.length||(d.pageInfo&&d.pageInfo.isLastPage))break}P=L;render()}
-  catch(e){say('Could not load records. '+e.message,1)}
+async function fetchAll(){
+  const L=[];
+  for(let o=0;;o+=100){
+    const d=await api('GET',`?limit=100&offset=${o}&sort=Id`);
+    if(!d||!Array.isArray(d.list))throw Object.assign(new Error('Unexpected response from the server'),{status:502});
+    const list=d.list;
+    L.push(...list);
+    if(!list.length||(d.pageInfo&&d.pageInfo.isLastPage))break;
+  }
+  return L;
+}
+function pendingCount(){return outbox.length}
+function updateNetUI(){
+  const n=pendingCount(),browserOn=navigator.onLine!==false,on=netOk&&browserOn,issue=!!syncError;
+  const el=$('net');
+  el.textContent=busy?'Syncing…':!on?(n?`Offline · ${n} saved`:'Offline'):issue?'Sync issue':n?`${n} to sync`:'Online';
+  el.className='net '+(busy?'busy':(!on||issue)?'off':n?'pending':'on');
+  el.title=syncError||(lastSync?`Last sync: ${new Date(lastSync).toLocaleString()}`:'Not synced yet');
+  $('syncBtn').hidden=!(n||issue)||busy;
+  $('syncBtn').disabled=!browserOn;
+  $('offline').hidden=on;
+  const note=$('note');
+  if(note)note.textContent=!on?`Offline — ${n?n+' change(s) saved on this device':'showing the last saved copy'}. ${browserOn?'Press "Sync now" to retry.':'They will sync automatically when the connection returns.'}`:n?`${n} change(s) waiting to sync.${issue?' Last error: '+syncError:''}`:issue?`Could not refresh the patient list: ${syncError}`:'Records are stored in NocoDB. Export CSV for a local copy.';
+}
+function queueUpdate(Id,body){
+  const ex=outbox.find(o=>o.op==='update'&&String(o.Id)===String(Id));
+  if(ex){ex.body=body;delete ex.error;delete ex.nextTry}
+  else outbox.push({op:'update',Id,body});
+}
+async function pushOutbox(){
+  if(!outbox.length)return 0;
+  let done=0;const keep=[];
+  try{
+    for(let i=0;i<outbox.length;i++){
+      const op=outbox[i];
+      if(op.error&&op.nextTry&&op.nextTry>Date.now()){keep.push(op);continue}
+      try{
+        if(op.op==='create'){
+          const res=await api('POST','',op.body);
+          const newId=Array.isArray(res)?(res[0]&&res[0].Id):(res&&res.Id);
+          if(newId==null)throw Object.assign(new Error('NocoDB did not return an Id'),{status:422});
+          const rec=P.find(r=>String(r.Id)===String(op.localId));
+          if(rec){rec.Id=newId;delete rec._pending;rec._dirty=false}
+        }else if(op.op==='update'){
+          await api('PATCH','',{Id:op.Id,...op.body});
+          const rec=P.find(r=>String(r.Id)===String(op.Id));
+          if(rec)delete rec._dirty;
+        }else if(op.op==='delete'){
+          try{await api('DELETE','',{Id:op.Id})}catch(e){if(e.status!==404)throw e}
+        }
+        done++;
+      }catch(e){
+        const stop=e.auth||e.offline||e.status===401||e.status===403||e.status===408||e.status===429||(e.status&&e.status>=500);
+        if(stop){keep.push(op);for(let j=i+1;j<outbox.length;j++)keep.push(outbox[j]);throw e}
+        op.error=e.message;op.nextTry=Date.now()+5*60*1000;keep.push(op);
+      }
+    }
+    return done;
+  }finally{
+    outbox=keep;
+    try{await persist()}catch{say('Could not save the offline queue on this device.',1)}
+  }
+}
+async function refresh(force){
+  updateNetUI();
+  if(busy){refreshQueued=true;refreshForce=refreshForce||!!force;return}
+  if(force)outbox.forEach(o=>{delete o.error;delete o.nextTry});
+  if(!netOk||navigator.onLine===false){say('Offline — showing records saved on this device.',1);return}
+  if(!PW){updateNetUI();return}
+  busy=true;updateNetUI();
+  try{
+    if(outbox.length)await pushOutbox();
+    if(!outbox.length){
+      P=await fetchAll();
+      lastSync=Date.now();
+      syncError='';
+      await persist();
+      render();
+    }else{
+      const bad=outbox.find(o=>o.error);
+      if(bad){syncError=bad.error;say('One change could not sync yet: '+bad.error,1)}
+      else syncError='';
+    }
+  }catch(e){
+    if(e.offline){netOk=false;syncError='No connection';say('No connection. Changes are safe on this device and will sync when you are back online.',1)}
+    else if(e.status===401||e.auth){syncError='';/* password dialog already opened */}
+    else {syncError=e.message;say('Could not sync. '+e.message,1)}
+  }finally{
+    busy=false;updateNetUI();render();
+    if(refreshQueued){const f=refreshForce;refreshQueued=false;refreshForce=false;refresh(f)}
+  }
 }
 let tm;function say(t,bad){const m=$('msg');m.textContent=t;m.className=bad?'bad':'';clearTimeout(tm);tm=setTimeout(()=>m.textContent='',4500)}
 const lab=(k,v)=>v===''||v==null?'':v;
@@ -313,7 +461,8 @@ function applyFreeze(clear){
   Object.entries(FREEZE_SECTION_PARTIAL).forEach(([i,keep])=>{
     S[i][1].forEach(([k])=>{
       if(keep.includes(k))return;
-      f.elements[k].disabled=dead;if(dead&&clear)clearField(k);
+      f.querySelectorAll(`[name="${k}"]`).forEach(x=>x.disabled=dead);
+      if(dead&&clear)clearField(k);
     });
   });
   if(dead&&clear)computeISS();
@@ -341,7 +490,7 @@ function initGeo(){for(const g in GL)[0,1,2].forEach(i=>fillGeo(g,i))}
 f.addEventListener('change',e=>{
   const t=e.target,gd=t.dataset&&t.dataset.g;
   if(gd){const[g,i]=gd.split(':'),oth=gOt(t.name);oth.hidden=t.value!='__other__';if(oth.hidden)oth.value='';for(let j=+i+1;j<3;j++)fillGeo(g,j);return}
-  if(t.name=='arrival_condition')applyFreeze(true);
+  if(t.name=='arrival_condition')applyFreeze(t.value=='Brought dead');
   syncOther();
 });
 
@@ -382,30 +531,51 @@ function startEdit(p){
 function stopEdit(){editing=null;f.reset();updateEditUI()}
 $('cancelEdit').onclick=stopEdit;
 
-// add / update patient
+// add / update patient (writes locally first, then syncs)
 f.addEventListener('submit',async e=>{
-  e.preventDefault();const r={};
+  e.preventDefault();
+  if(busy)return say('Syncing — please try again in a moment.',1);
+  if(!ready)return say('Loading records saved on this device — try again in a moment.',1);
+  const r={};
   ALL.forEach(([k,,t])=>{r[k]=t=='m'?[...f.querySelectorAll(`[name="${k}"]:checked`)].map(c=>c.value).join('; '):t=='g'?gVal(k):f.elements[k].value.trim()});
   if(!r.study_id)return say('Enter a Study ID.',1);
-  await load();
-  if(P.some(p=>p.Id!==(editing&&editing.Id)&&(p.study_id||'').toLowerCase()==r.study_id.toLowerCase()))return say(`Study ID ${r.study_id} already exists. Use a different ID.`,1);
+  const target=editing,tid=target?String(target.Id):null;
+  if(P.some(p=>(tid===null||String(p.Id)!==tid)&&(p.study_id||'').toLowerCase()==r.study_id.toLowerCase()))return say(`Study ID ${r.study_id} already exists. Use a different ID.`,1);
   const body={};
-  if(editing){ALL.forEach(([k,,t])=>{body[k]=t=='n'?(r[k]===''?'':Number(r[k])):r[k]})}
+  if(target){ALL.forEach(([k,,t])=>{body[k]=t=='n'?(r[k]===''?null:Number(r[k])):r[k]})}
   else ALL.forEach(([k,,t])=>{if(r[k]!=='')body[k]=t=='n'?Number(r[k]):r[k]});
-  EX.forEach(k=>{const o=f.elements[k+'_other'].value.trim();if(editing||o)body[k+'_other']=o});
-  try{
-    if(editing){await api('PATCH','',{Id:editing.Id,...body});say(`Updated patient ${r.study_id}.`)}
-    else{await api('POST','',body);say(`Saved patient ${r.study_id}.`)}
-    const wasEdit=editing;stopEdit();await load();if(!wasEdit)show(0);
+  EX.forEach(k=>{const o=f.elements[k+'_other'].value.trim();if(target||o)body[k+'_other']=o});
+  if(target){
+    Object.assign(target,body);
+    if(target._pending){
+      const op=outbox.find(o=>o.op==='create'&&String(o.localId)===String(target.Id));
+      if(op){op.body=body;delete op.error;delete op.nextTry}
+    }else{
+      target._dirty=true;
+      queueUpdate(target.Id,body);
+    }
+  }else{
+    const rec={...body,Id:localId(),_pending:true,CreatedAt:new Date().toISOString()};
+    P.push(rec);
+    outbox.push({op:'create',localId:rec.Id,body});
   }
-  catch(err){say('Could not save. '+err.message,1)}
+  try{await persist()}catch(err){say('Saved in this tab, but could not store it on this device: '+err.message+' Do not reload until synced.',1)}
+  const online=netOk&&navigator.onLine!==false;
+  stopEdit();show(0);render();updateNetUI();
+  if(online&&PW){
+    say(target?`Updated patient ${r.study_id}.`:`Saved patient ${r.study_id}.`);
+    refresh();
+  }else{
+    say(`Saved patient ${r.study_id} on this device. ${online?'Enter the password to sync.':'It will sync when you are online.'}`);
+  }
 });
 
 // current patients
+const badge=p=>p._pending?'<span class="pill" title="Saved on this device — not yet in NocoDB">local</span>':p._dirty?'<span class="pill dirty" title="Edited on this device — waiting to sync">edited</span>':'';
 function render(){
   $('cnt').textContent=P.length;
   const q=$('q').value.trim().toLowerCase(),rows=P.filter(p=>(p.study_id||'').toLowerCase().includes(q)||(p.accident_id||'').toLowerCase().includes(q));
-  $('tb').innerHTML=rows.map(p=>`<tr><td><b>${esc(p.study_id)}</b></td><td>${esc(p.accident_id)}</td><td>${esc(p.age)}</td><td>${esc(lab('sex',p.sex))}</td><td>${esc(lab('road_user',p.road_user))}</td><td>${esc(p.iss)}</td><td>${esc(p.icu)}</td><td>${esc(lab('outcome',p.outcome))}</td><td class="act"><button class="b o s" data-a="v" data-id="${esc(p.study_id)}">View</button> <button class="b o s" data-a="e" data-id="${esc(p.study_id)}">Edit</button> <button class="b d s" data-a="x" data-id="${esc(p.study_id)}">Delete</button></td></tr>`).join('');
+  $('tb').innerHTML=rows.map(p=>`<tr><td><b>${esc(p.study_id)}</b>${badge(p)}</td><td>${esc(p.accident_id)}</td><td>${esc(p.age)}</td><td>${esc(lab('sex',p.sex))}</td><td>${esc(lab('road_user',p.road_user))}</td><td>${esc(p.iss)}</td><td>${esc(p.icu)}</td><td>${esc(lab('outcome',p.outcome))}</td><td class="act"><button class="b o s" data-a="v" data-id="${esc(p.study_id)}">View</button> <button class="b o s" data-a="e" data-id="${esc(p.study_id)}">Edit</button> <button class="b d s" data-a="x" data-id="${esc(p.study_id)}">Delete</button></td></tr>`).join('');
   $('tw').hidden=!rows.length;
   $('empty').hidden=!!rows.length;
   $('empty').textContent=P.length?'No patient matches that ID.':'No patients yet. Use Add patient to enter the first record.';
@@ -423,10 +593,12 @@ function openSet(){$('nPw').value='';if(!$('set').open)$('set').showModal()}
 $('setBtn').onclick=openSet;
 $('sf').addEventListener('submit',e=>{
   e.preventDefault();
-  if(document.activeElement&&document.activeElement.value=='cancel'){$('set').close();return}
-  PW=$('nPw').value;
-  localStorage.setItem('rtaPw',PW);
-  $('set').close();load();
+  const sv=(e.submitter&&e.submitter.value)||(document.activeElement&&document.activeElement.value);
+  if(sv==='cancel'){$('set').close();return}
+  PW=$('nPw').value.trim();
+  if(PW)localStorage.setItem('rtaPw',PW);else localStorage.removeItem('rtaPw');
+  $('set').close();
+  if(PW){netOk=true;refresh(true)}else updateNetUI();
 });
 
 // view + delete
@@ -435,38 +607,48 @@ $('tb').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   const p=P.find(x=>x.study_id==b.dataset.id);if(!p)return;
   if(b.dataset.a=='v'){
-    dlg.innerHTML=`<form method="dialog"><h2>Patient ${esc(p.study_id)}</h2><div class="bd">${S.map(([t,fs])=>{
-      const r=fs.filter(x=>p[x[0]]).map(x=>`<dt>${x[1].replace(/ \(auto\)/,'')}</dt><dd>${esc(lab(x[0],p[x[0]])+(p[x[0]+'_other']?' — '+p[x[0]+'_other']:''))}</dd>`).join('');
+    const has=v=>v!==null&&v!==undefined&&v!=='';
+    const flag=p._pending?'<p class="note">Saved on this device — not yet synced to NocoDB.</p>':p._dirty?'<p class="note">Edited on this device — waiting to sync.</p>':'';
+    dlg.innerHTML=`<form method="dialog"><h2>Patient ${esc(p.study_id)}</h2>${flag}<div class="bd">${S.map(([t,fs])=>{
+      const r=fs.filter(x=>has(p[x[0]])).map(x=>`<dt>${x[1].replace(/ \(auto\)/,'')}</dt><dd>${esc(p[x[0]]+(p[x[0]+'_other']?' — '+p[x[0]+'_other']:''))}</dd>`).join('');
       return r?`<h3>${t}</h3><dl>${r}</dl>`:''}).join('')}</div><div class="ft"><button class="b o" value="x">Close</button></div></form>`;
     dlg.showModal();
   }else if(b.dataset.a=='e'){startEdit(p)}
   else{
     pend=p.study_id;
-    dlg.innerHTML=`<form method="dialog"><h2>Delete patient ${esc(p.study_id)}?</h2><p>This permanently removes the record from NocoDB. Export CSV first if you need a copy.</p><div class="ft"><button class="b o" value="x">Cancel</button><button class="b dd" value="del">Delete patient</button></div></form>`;
+    const msg=p._pending?'This removes the unsaved record from this device.':'This removes the record here and deletes it from NocoDB on the next sync (or immediately if you are online). Export CSV first if you need a copy.';
+    dlg.innerHTML=`<form method="dialog"><h2>Delete patient ${esc(p.study_id)}?</h2><p>${msg}</p><div class="ft"><button class="b o" value="x">Cancel</button><button class="b dd" value="del">Delete patient</button></div></form>`;
     dlg.showModal();
   }
 });
 dlg.addEventListener('close',async()=>{
   const id=pend,go=dlg.returnValue=='del';pend=null;dlg.returnValue='';
   if(!go||!id)return;
+  if(busy)return say('Syncing — please try again in a moment.',1);
+  if(!ready)return say('Loading records saved on this device — try again in a moment.',1);
   const p=P.find(x=>x.study_id==id);
   if(!p)return;
-  if(p.Id==null||p.Id===''){say('This record has no NocoDB Id. Reload the patient list (refresh the page) and try again.',1);return}
-  try{
-    await api('DELETE','',{Id:p.Id});
-    P=P.filter(x=>x.Id!==p.Id);render();
-    say(`Deleted patient ${id}.`);
-    load();
+  if(!p._pending&&(p.Id==null||p.Id==='')){say('This record has no NocoDB Id. Refresh the patient list and try again.',1);return}
+  P=P.filter(x=>String(x.Id)!==String(p.Id));
+  if(p._pending){
+    outbox=outbox.filter(o=>!(String(o.localId)===String(p.Id)||(o.op==='update'&&String(o.Id)===String(p.Id))));
+  }else{
+    outbox=outbox.filter(o=>!(o.op==='update'&&String(o.Id)===String(p.Id)));
+    if(!outbox.some(o=>o.op==='delete'&&String(o.Id)===String(p.Id)))outbox.push({op:'delete',Id:p.Id});
   }
-  catch(err){say('Could not delete. '+err.message,1)}
+  try{await persist()}catch(err){say('Removed here, but could not store the change on this device: '+err.message,1)}
+  render();updateNetUI();
+  const online=netOk&&navigator.onLine!==false;
+  if(online&&PW){say(`Deleted patient ${id}.`);refresh()}
+  else say(`Removed patient ${id} on this device. ${online?'Enter the password to sync.':'The server will be updated when you are online.'}`);
 });
 
 // export csv
-const q=s=>{s=String(s??'');return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const q=s=>{s=String(s??'');if(/^[=+@\t\r]/.test(s)||(/^-/.test(s)&&!/^-?\d+(\.\d+)?$/.test(s)))s="'"+s;return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
 $('exp').onclick=async()=>{
   if(!P.length)return say('No patients to export yet.',1);
-  const keys=[...ALL.map(x=>x[0]),...EX.map(k=>k+'_other'),'CreatedAt'];
-  const csv='\ufeff'+[keys.join(','),...P.map(p=>keys.map(k=>q(p[k])).join(','))].join('\r\n');
+  const keys=[...ALL.map(x=>x[0]),...EX.map(k=>k+'_other'),'CreatedAt','sync_status'];
+  const csv='\ufeff'+[keys.join(','),...P.map(p=>keys.map(k=>q(k==='sync_status'?(p._pending?'local':p._dirty?'edited':'synced'):p[k])).join(','))].join('\r\n');
   const name=`rta_patients_${new Date().toISOString().slice(0,10)}.csv`;
   try{
     const dl=window.claude?await claude.use('downloads'):null;
@@ -474,7 +656,31 @@ $('exp').onclick=async()=>{
     else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;a.click();say('CSV downloaded.')}
   }catch(err){if(!err||err.code!='declined')say('Could not export the CSV.',1)}
 };
-render();load();
+// ---- boot: restore what was saved on this device, then sync if possible ----
+async function boot(){
+  try{
+    const st=await storeGet();
+    if(st){
+      P=Array.isArray(st.records)?st.records:[];
+      outbox=Array.isArray(st.outbox)?st.outbox:[];
+      lastSync=st.lastSync||0;
+    }
+  }catch(e){}
+  ready=true;
+  render();updateNetUI();
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  }
+  if(netOk&&!PW)openSet();
+  if(netOk&&PW)refresh();
+  else if(!netOk&&outbox.length)say(`Offline — ${pendingCount()} change(s) saved on this device. They will sync when you are online.`,1);
+}
+addEventListener('online',()=>{netOk=true;syncError='';updateNetUI();if(PW)refresh();else if(outbox.length)openSet()});
+addEventListener('offline',()=>{netOk=false;updateNetUI();say('Offline — changes are saved on this device.',1)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&netOk&&PW&&outbox.length)refresh()});
+$('syncBtn').onclick=()=>{if(navigator.onLine===false)return say('Still offline.',1);netOk=true;updateNetUI();if(!PW)return openSet();refresh(true)};
+boot();
 </script>
 </body>
 </html>

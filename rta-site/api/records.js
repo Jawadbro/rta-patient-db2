@@ -12,6 +12,11 @@ function authorized(req) {
 export default async function handler(req, res) {
   const { NOCODB_URL, NOCODB_TOKEN, NOCODB_TABLE_ID } = process.env;
 
+  // Patient data and password failures must not be stored by browsers or proxies.
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
   if (!ALLOWED.includes(req.method)) return res.status(405).json({ error: 'Method not allowed' });
   if (!authorized(req)) return res.status(401).json({ error: 'Unauthorized' });
   if (!NOCODB_URL || !NOCODB_TOKEN || !NOCODB_TABLE_ID) {
