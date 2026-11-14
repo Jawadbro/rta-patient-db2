@@ -19,19 +19,27 @@ NocoDB URL, table ID, and token never reach the browser.
 ## Offline use
 
 1. **App shell** — `sw.js` caches `index.html`, the manifest, and the icon, so the
-   site opens without a connection after one online visit. `/api/*` is never cached.
+   site opens without a connection after one online visit. The cached copy is
+   served immediately and refreshed in the background, so a slow network never
+   blocks the page from opening. `/api/*` is never cached.
 2. **Records** — the last loaded patient list is stored in IndexedDB (with a
    `localStorage` fallback) and restored on startup.
 3. **New work** — saving a new or edited patient writes to the device first and
    queues an operation in an outbox. Deletes are queued too, so a patient removed
    offline is deleted from NocoDB on the next sync.
 4. **Sync** — runs automatically on startup (when a password is available), when
-   the browser comes back online, when the tab becomes visible with pending work,
-   and from the **Sync now** button. A patient that exists only on the device is
-   marked **LOCAL**; an edited patient is marked **EDITED**.
-5. **Failure handling** — network/server errors keep the queue and retry later.
+   the browser comes back online, when the tab becomes visible again, and from
+   the **Sync now** button. A patient that exists only on the device is marked
+   **LOCAL**; an edited patient is marked **EDITED**.
+5. **Retry** — requests give up after 30 seconds, and an unreachable server is
+   retried automatically (15 s, then backing off up to 2 minutes). The badge
+   shows **Server unreachable** rather than **Offline** when the browser has a
+   connection but the API does not answer.
+6. **Failure handling** — network/server errors keep the queue and retry later.
    A validation error (4xx) keeps the change on the device and shows the server
    message; edit the row and save again, or press **Sync now** to retry.
+7. **Server side** — `api/records.js` aborts a NocoDB request after 20 seconds
+   and returns a clear 504 instead of hanging (see `vercel.json`, `maxDuration`).
 
 The password is only for NocoDB access. It is remembered in `localStorage`, so
 syncing can resume after a restart.
@@ -68,3 +76,4 @@ syncing can resume after a restart.
 | `sw.js` | Service worker / offline shell cache |
 | `manifest.webmanifest` | Home-screen metadata |
 | `icon.svg` | App icon |
+| `vercel.json` | Function `maxDuration` (keeps the API from being killed mid-request) |

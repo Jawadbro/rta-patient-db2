@@ -1,7 +1,7 @@
 /* RTA patient database — offline app shell.
    Patient records are never cached here; they live in IndexedDB and are
    written to NocoDB by the page when a connection is available. */
-const SHELL = 'rta-shell-v1';
+const SHELL = 'rta-shell-v2';
 const FONTS = 'rta-fonts-v1';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
 
@@ -32,22 +32,27 @@ self.addEventListener('fetch', e => {
   // Never cache patient data or API responses.
   if (url.pathname.startsWith('/api/')) return;
 
-  // Pages: network first so updates arrive, cache as the offline fallback.
+  // Pages: serve the cached shell immediately, then refresh it in the
+  // background. Network-first made the app wait for a TCP timeout on a bad
+  // connection before showing anything.
   if (req.mode === 'navigate') {
-    e.respondWith((async () => {
-      try {
-        const r = await fetch(req);
+    const refresh = fetch(req)
+      .then(async r => {
         if (r.ok) {
           const c = await caches.open(SHELL);
-          c.put('/index.html', r.clone());
+          await c.put('/index.html', r.clone());
         }
         return r;
-      } catch {
-        return (await caches.match(req))
-          || (await caches.match('/index.html'))
-          || (await caches.match('/'))
-          || Response.error();
-      }
+      })
+      .catch(() => null);
+    e.waitUntil(refresh);
+
+    e.respondWith((async () => {
+      const c = await caches.open(SHELL);
+      const hit = (await c.match('/index.html')) || (await c.match(req)) || (await c.match('/'));
+      if (hit) return hit;
+      const r = await refresh;
+      return r || Response.error();
     })());
     return;
   }
